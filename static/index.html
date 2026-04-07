@@ -1,0 +1,2161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HumanSQL - AI-Powered Natural Language to SQL</title>
+  <script src="https://unpkg.com/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --secondary: #64748b;
+      --success: #059669;
+      --warning: #d97706;
+      --error: #dc2626;
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-sidebar: #1e293b;
+      --text-primary: #0f172a;
+      --text-secondary: #64748b;
+      --text-light: #94a3b8;
+      --border: #e2e8f0;
+      --border-dark: #334155;
+      --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    .app-container {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      min-height: 100vh;
+      width: 100%;
+      overflow-x: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--bg-sidebar);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: fixed;
+      width: 300px;
+      z-index: 100;
+    }
+
+    .logo {
+      padding: 2rem 1.5rem;
+      border-bottom: 1px solid var(--border-dark);
+      background: #0f172a;
+    }
+
+    .logo-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--primary);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      color: white;
+    }
+
+    .logo-text {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .logo-subtitle {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      font-weight: 400;
+      margin-top: 2px;
+    }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+
+    .sidebar-section {
+      margin-bottom: 2rem;
+    }
+
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tables-container {
+      max-height: 300px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .tables-container::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .tables-container::-webkit-scrollbar-track {
+      background: #334155;
+      border-radius: 2px;
+    }
+
+    .tables-container::-webkit-scrollbar-thumb {
+      background: #64748b;
+      border-radius: 2px;
+    }
+
+    .tables-container::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .table-item, .history-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .table-item:hover, .history-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .history-item:active {
+      transform: translateY(0);
+    }
+
+    .table-item.active {
+      background: rgba(37, 99, 235, 0.2);
+      border-color: var(--primary);
+    }
+
+    .table-delete-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.75rem;
+      opacity: 0;
+      transition: all 0.2s ease;
+    }
+
+    .table-item:hover .table-delete-btn {
+      opacity: 1;
+    }
+
+    .history-delete-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.7rem;
+      opacity: 0;
+      transition: all 0.2s ease;
+    }
+
+    .history-item:hover .history-delete-btn {
+      opacity: 1;
+    }
+
+    .history-delete-btn:hover {
+      background: #dc2626;
+    }
+
+    .table-name {
+      font-weight: 600;
+      color: white;
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .table-info {
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    .history-container {
+      max-height: 250px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .history-container::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .history-container::-webkit-scrollbar-track {
+      background: #334155;
+      border-radius: 2px;
+    }
+
+    .history-container::-webkit-scrollbar-thumb {
+      background: #64748b;
+      border-radius: 2px;
+    }
+
+    /* Main Content */
+    .main-content {
+      margin-left: 300px;
+      padding: 0;
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      min-height: 100vh;
+      width: calc(100vw - 300px);
+      overflow-x: hidden;
+    }
+
+    .main-header {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .main-title {
+      font-size: 2.25rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .main-subtitle {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .main-body {
+      padding: 1.5rem;
+      max-width: 1000px;
+      margin: 0 auto;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+
+
+    .card:hover {
+      border-color: #cbd5e1;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-icon {
+      font-size: 1.2rem;
+      color: var(--primary);
+    }
+
+    /* Upload Area */
+    .upload-area {
+      border: 2px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: #f8fafc;
+    }
+
+    .upload-area:hover, .upload-area.dragover {
+      border-color: var(--primary);
+      background: #eff6ff;
+    }
+
+    .upload-icon {
+      font-size: 1.8rem;
+      color: var(--primary);
+      margin-bottom: 0.75rem;
+    }
+
+    .upload-text {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+      font-weight: 600;
+    }
+
+    .upload-subtext {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+
+    /* Current Table Indicator */
+    .current-table-indicator {
+      background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%);
+      color: white;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+    }
+
+    .current-table-name {
+      flex: 1;
+      font-size: 0.95rem;
+    }
+
+    .current-table-info {
+      font-size: 0.8rem;
+      opacity: 0.9;
+    }
+
+    .chat-feedback-btn.dislike:hover {
+      background: #fef2f2;
+      border-color: var(--error);
+    }
+
+    .empty-chat {
+      text-align: center;
+      color: var(--text-light);
+      font-style: italic;
+      padding: 2rem;
+    }
+
+    /* Natural Answer */
+    .natural-answer {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border: 1px solid #bbf7d0;
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .natural-answer::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--success) 0%, #059669 100%);
+    }
+
+    .natural-answer-title {
+      font-weight: 700;
+      color: var(--success);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.1rem;
+    }
+
+    .natural-answer-text {
+      color: #166534;
+      line-height: 1.7;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    /* Query Input */
+    .query-container {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    /* Chat Interface */
+    .chat-container {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .chat-messages {
+      padding: 1rem;
+      min-height: 100px;
+    }
+
+    .chat-message {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      border-radius: 8px;
+      position: relative;
+    }
+
+    .chat-message.user {
+      background: #f1f5f9;
+      margin-left: 2rem;
+    }
+
+    .chat-message.assistant {
+      background: #f8fafc;
+      margin-right: 2rem;
+    }
+
+    .chat-message-content {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: var(--text-primary);
+    }
+
+    .chat-message-content h1, .chat-message-content h2, .chat-message-content h3 {
+      font-weight: 600;
+      margin: 0.5rem 0;
+      color: var(--text-primary);
+    }
+
+    .chat-message-content ul, .chat-message-content ol {
+      margin: 0.5rem 0;
+      padding-left: 1.5rem;
+    }
+
+    .chat-message-content li {
+      margin: 0.25rem 0;
+    }
+
+    .chat-message-content strong {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .chat-message-content p {
+      margin: 0.5rem 0;
+    }
+
+    .chat-message-time {
+      font-size: 0.75rem;
+      color: var(--text-light);
+      margin-top: 0.5rem;
+    }
+
+    .chat-feedback {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      align-items: center;
+    }
+
+    .chat-feedback-text {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-right: 0.5rem;
+    }
+
+    .chat-feedback-btn {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+    }
+
+    .chat-feedback-btn:hover {
+      border-color: #94a3b8;
+    }
+
+    .chat-feedback-btn.like {
+      color: var(--success);
+      border-color: var(--success);
+    }
+
+    .chat-feedback-btn.like:hover {
+      background: var(--success);
+      color: white;
+    }
+
+    .chat-feedback-btn.dislike {
+      color: var(--error);
+      border-color: var(--error);
+    }
+
+    .chat-feedback-btn.dislike:hover {
+      background: var(--error);
+      color: white;
+    }
+
+    .chat-feedback-btn.dislike:hover {
+      background: #fef2f2;
+      border-color: var(--error);
+    }
+
+    .empty-chat {
+      text-align: center;
+      color: var(--text-light);
+      font-style: italic;
+      padding: 2rem;
+    }
+
+    .query-input {
+      width: 100%;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      padding-right: 3.5rem;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 80px;
+      max-height: 120px;
+      transition: all 0.2s ease;
+    }
+
+    .query-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .query-input::placeholder {
+      color: var(--text-light);
+    }
+
+    .voice-btn {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background: var(--success);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+    }
+
+    .voice-btn:hover {
+      background: #047857;
+    }
+
+    .voice-btn.active {
+      background: var(--warning);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    /* Buttons */
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #f1f5f9;
+    }
+
+    .btn-success {
+      background: var(--success);
+    }
+
+    .btn-success:hover:not(:disabled) {
+      background: #047857;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    /* SQL Display */
+    .sql-container {
+      margin-bottom: 2rem;
+    }
+
+    .sql-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .sql-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .sql-display {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 1.5rem;
+      border-radius: 8px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.9rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid #334155;
+    }
+
+    /* Enhanced Feedback System */
+    .feedback-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 1rem;
+      padding: 1.5rem;
+      background: #f8fafc;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .feedback-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .feedback-text {
+      color: var(--text-primary);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .feedback-close {
+      background: none;
+      border: none;
+      color: var(--text-light);
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 0.25rem;
+    }
+
+    .feedback-rating {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .star-rating {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .star {
+      font-size: 1.5rem;
+      color: #e2e8f0;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .star:hover,
+    .star.active {
+      color: #fbbf24;
+      transform: scale(1.1);
+    }
+
+    .rating-text {
+      margin-left: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .feedback-categories {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .category-chip {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: var(--text-secondary);
+    }
+
+    .category-chip:hover {
+      border-color: var(--primary);
+      background: #eff6ff;
+    }
+
+    .category-chip.selected {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .feedback-comment {
+      width: 100%;
+      min-height: 80px;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+      margin-bottom: 1rem;
+    }
+
+    .feedback-comment:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .feedback-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
+    .feedback-submit {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .feedback-submit:hover {
+      background: var(--primary-hover);
+    }
+
+    .feedback-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .feedback-skip {
+      background: none;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .feedback-skip:hover {
+      background: #f1f5f9;
+    }
+
+    .feedback-success {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--success);
+      font-weight: 600;
+      font-size: 0.9rem;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .feedback-analytics {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border: 1px solid #bae6fd;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .analytics-title {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .analytics-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+    }
+
+    /* Results Table */
+    .results-container {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: auto;
+      max-height: 600px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+    }
+
+    .results-table th {
+      background: #f8fafc;
+      color: var(--text-primary);
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .results-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: visible;
+      text-overflow: clip;
+      max-width: 200px;
+    }
+
+    .results-table tr:hover {
+      background: #f8fafc;
+    }
+
+    /* Alerts */
+    .alert {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      border: 1px solid;
+    }
+
+    .alert-success {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+      color: #166534;
+    }
+
+    .alert-error {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #991b1b;
+    }
+
+    .alert-warning {
+      background: #fffbeb;
+      border-color: #fed7aa;
+      color: #92400e;
+    }
+
+    /* Loading */
+    .loading {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Delete Confirmation Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .modal-message {
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+    }
+
+    .modal-btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .modal-btn-cancel {
+      background: #f1f5f9;
+      color: var(--text-primary);
+    }
+
+    .modal-btn-cancel:hover {
+      background: #e2e8f0;
+    }
+
+    .modal-btn-delete {
+      background: var(--error);
+      color: white;
+    }
+
+    .modal-btn-delete:hover {
+      background: #b91c1c;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 1024px) {
+      .app-container {
+        grid-template-columns: 1fr;
+      }
+      
+      .sidebar {
+        display: none;
+      }
+      
+      .main-content {
+        margin-left: 0;
+        width: 100vw;
+      }
+      
+      .main-title {
+        font-size: 2rem;
+      }
+
+      .main-body {
+        padding: 1.5rem;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        padding: 0;
+        width: 100vw;
+      }
+      
+      .main-body {
+        padding: 1rem;
+      }
+      
+      .card {
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+      
+      .btn-group {
+        flex-direction: column;
+      }
+      
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .main-header {
+        padding: 2rem 1rem;
+      }
+
+      .main-title {
+        font-size: 1.75rem;
+      }
+
+      .main-subtitle {
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const App = () => {
+      const [file, setFile] = useState(null);
+      const [tables, setTables] = useState([]);
+      const [currentTable, setCurrentTable] = useState('');
+      const [query, setQuery] = useState('');
+      const [sqlQuery, setSqlQuery] = useState('');
+      const [results, setResults] = useState(null);
+      const [uploadLoading, setUploadLoading] = useState(false);
+      const [queryLoading, setQueryLoading] = useState(false);
+      const [error, setError] = useState('');
+      const [success, setSuccess] = useState('');
+      const [warning, setWarning] = useState('');
+      const [history, setHistory] = useState([]);
+      const [isRecording, setIsRecording] = useState(false);
+      const [dragOver, setDragOver] = useState(false);
+      const [currentQueryId, setCurrentQueryId] = useState(null);
+      const [naturalAnswer, setNaturalAnswer] = useState('');
+      const [chatMessages, setChatMessages] = useState([]);
+      const [showFeedback, setShowFeedback] = useState(false);
+      const [feedbackRating, setFeedbackRating] = useState(0);
+      const [feedbackCategories, setFeedbackCategories] = useState([]);
+      const [feedbackComment, setFeedbackComment] = useState('');
+      const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+      const [feedbackAnalytics, setFeedbackAnalytics] = useState(null);
+      const [showChat, setShowChat] = useState(false);
+      const [showDeleteModal, setShowDeleteModal] = useState(false);
+      const [tableToDelete, setTableToDelete] = useState(null);
+      const [showDeleteQueryModal, setShowDeleteQueryModal] = useState(false);
+      const [queryToDelete, setQueryToDelete] = useState(null);
+      
+      const fileInputRef = useRef(null);
+      const recognitionRef = useRef(null);
+
+      useEffect(() => {
+        fetchTables();
+        fetchHistory();
+        fetchFeedbackAnalytics();
+      }, []);
+
+      const fetchFeedbackAnalytics = async () => {
+        try {
+          const response = await fetch('/feedback_analytics');
+          const data = await response.json();
+          setFeedbackAnalytics(data);
+        } catch (err) {
+          console.error('Failed to fetch feedback analytics');
+        }
+      };
+
+      const fetchTables = async () => {
+        try {
+          const response = await fetch('/tables');
+          const data = await response.json();
+          setTables(data.tables || []);
+          if (data.tables.length > 0 && !currentTable) {
+            setCurrentTable(data.tables[0].name);
+          }
+        } catch (err) {
+          setError('Failed to fetch tables');
+        }
+      };
+
+      const fetchHistory = async () => {
+        try {
+          const response = await fetch('/query_history');
+          const data = await response.json();
+          setHistory(data.history || []);
+        } catch (err) {
+          setError('Failed to fetch query history');
+        }
+      };
+
+      const clearAlerts = () => {
+        setError('');
+        setSuccess('');
+        setWarning('');
+      };
+
+      const handleDragOver = (e) => {
+        e.preventDefault();
+        setDragOver(true);
+      };
+
+      const handleDragLeave = (e) => {
+        e.preventDefault();
+        setDragOver(false);
+      };
+
+      const handleDrop = (e) => {
+        e.preventDefault();
+        setDragOver(false);
+        const droppedFile = e.dataTransfer.files[0];
+        if (droppedFile) {
+          setFile(droppedFile);
+          clearAlerts();
+        }
+      };
+
+      const handleUpload = async () => {
+        if (!file) {
+          setError('Please select a file to upload');
+          return;
+        }
+
+        setUploadLoading(true);
+        clearAlerts();
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+          const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Upload failed');
+          }
+
+          const data = await response.json();
+          setSuccess(`File "${file.name}" uploaded successfully!`);
+          setCurrentTable(data.table_name);
+          await fetchTables();
+          
+          if (data.metadata.text_length < 50) {
+            setWarning('Minimal text extracted. Consider converting to a text-based format for better results.');
+          }
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setUploadLoading(false);
+        }
+      };
+
+      const handleQuery = async () => {
+        if (!query.trim()) {
+          setError('Please enter a query');
+          return;
+        }
+
+        if (!currentTable) {
+          setError('Please select a table first');
+          return;
+        }
+
+        setQueryLoading(true);
+        clearAlerts();
+
+        try {
+          const response = await fetch('/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: query }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Query failed');
+          }
+
+          const data = await response.json();
+          setSqlQuery(data.sql_query);
+          setResults(data.results);
+          setCurrentQueryId(data.query_id);
+          
+          // Add to chat
+          const userMessage = {
+            id: Date.now(),
+            type: 'user',
+            content: query,
+            timestamp: new Date()
+          };
+          
+          const assistantMessage = {
+            id: Date.now() + 1,
+            type: 'assistant',
+            content: data.conversational_response,
+            timestamp: new Date(),
+            queryId: data.query_id,
+            sqlQuery: data.sql_query
+          };
+          
+          setChatMessages(prev => [...prev, userMessage, assistantMessage]);
+          setShowChat(true);
+          
+          await fetchHistory();
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setQueryLoading(false);
+        }
+      };
+
+      const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleQuery();
+        }
+      };
+
+      const handleVoiceInput = () => {
+        if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+          setError('Speech recognition not supported in this browser. Try Chrome, Edge, or Safari.');
+          return;
+        }
+
+        if (isRecording) {
+          recognitionRef.current?.stop();
+          setIsRecording(false);
+          return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
+        recognitionRef.current.lang = 'en-US';
+
+        recognitionRef.current.onstart = () => {
+          setIsRecording(true);
+          clearAlerts();
+          setSuccess('🎤 Listening... Speak your question clearly');
+        };
+
+        recognitionRef.current.onresult = (event) => {
+          let transcript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              transcript += event.results[i][0].transcript;
+            }
+          }
+          if (transcript) {
+            setQuery(prev => prev + ' ' + transcript.trim());
+          }
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsRecording(false);
+          setSuccess('Voice input completed. You can edit the text or ask another question.');
+        };
+
+        recognitionRef.current.onerror = (event) => {
+          setIsRecording(false);
+          const errorMessages = {
+            'no-speech': 'No speech detected. Please try again.',
+            'audio-capture': 'Microphone not accessible. Check permissions.',
+            'not-allowed': 'Microphone permission denied. Please allow microphone access.',
+            'network': 'Network error. Check your internet connection.',
+            'aborted': 'Speech recognition was stopped.'
+          };
+          setError(errorMessages[event.error] || `Speech recognition error: ${event.error}`);
+        };
+
+        recognitionRef.current.start();
+      };
+
+      const selectTable = async (tableName) => {
+        try {
+          const response = await fetch('/select_table', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ table_name: tableName }),
+          });
+
+          if (response.ok) {
+            setCurrentTable(tableName);
+            setSuccess(`Selected table: ${tableName}`);
+          }
+        } catch (err) {
+          setError('Failed to select table');
+        }
+      };
+
+      const formatMarkdown = (text) => {
+        if (!text) return '';
+        
+        return text
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\* (.+?)(?=\n|$)/g, '<li>$1</li>')
+          .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+          .replace(/\n\n/g, '</p><p>')
+          .replace(/^(.+)$/, '<p>$1</p>')
+          .replace(/<p><ul>/g, '<ul>')
+          .replace(/<\/ul><\/p>/g, '</ul>');
+      };
+
+      const submitChatFeedback = async (messageIdOrQueryId, feedback) => {
+        let queryId;
+        
+        // Check if it's a message ID or direct query ID
+        if (typeof messageIdOrQueryId === 'number') {
+          // It's a message ID from chat
+          const message = chatMessages.find(m => m.id === messageIdOrQueryId);
+          if (!message || !message.queryId) return;
+          queryId = message.queryId;
+        } else {
+          // It's a direct query ID from SQL display
+          queryId = messageIdOrQueryId;
+        }
+        
+        try {
+          const response = await fetch('/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              query_id: queryId, 
+              feedback: feedback 
+            }),
+          });
+          
+          if (response.ok) {
+            setSuccess(feedback === 1 ? 'Thank you! Your feedback helps improve responses.' : 'Feedback recorded. We\'ll work on better answers.');
+            
+            // Update message to show feedback was given (only for chat messages)
+            if (typeof messageIdOrQueryId === 'number') {
+              setChatMessages(prev => prev.map(m => 
+                m.id === messageIdOrQueryId ? { ...m, feedbackGiven: true } : m
+              ));
+            }
+          }
+        } catch (err) {
+          setError('Failed to submit feedback');
+        }
+      };
+
+      const submitFeedback = async () => {
+        if (!currentQueryId || feedbackRating === 0) return;
+        
+        try {
+          const response = await fetch('/enhanced_feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              query_id: currentQueryId, 
+              rating: feedbackRating,
+              categories: feedbackCategories,
+              comment: feedbackComment.trim()
+            }),
+          });
+          
+          if (response.ok) {
+            setFeedbackSubmitted(true);
+            setSuccess('Thank you for your detailed feedback! This helps improve our AI.');
+            setTimeout(() => {
+              setShowFeedback(false);
+              setCurrentQueryId(null);
+              resetFeedbackForm();
+            }, 2000);
+            await fetchFeedbackAnalytics();
+          }
+        } catch (err) {
+          setError('Failed to submit feedback');
+        }
+      };
+
+      const resetFeedbackForm = () => {
+        setFeedbackRating(0);
+        setFeedbackCategories([]);
+        setFeedbackComment('');
+        setFeedbackSubmitted(false);
+      };
+
+      const toggleFeedbackCategory = (category) => {
+        setFeedbackCategories(prev => 
+          prev.includes(category) 
+            ? prev.filter(c => c !== category)
+            : [...prev, category]
+        );
+      };
+
+      const getRatingText = (rating) => {
+        const texts = {
+          1: 'Poor - Needs significant improvement',
+          2: 'Fair - Some issues to address', 
+          3: 'Good - Generally satisfactory',
+          4: 'Very Good - Minor improvements possible',
+          5: 'Excellent - Exceeds expectations'
+        };
+        return texts[rating] || 'Rate your experience';
+      };
+
+      const clearQuery = () => {
+        setQuery('');
+        setSqlQuery('');
+        setResults(null);
+        setCurrentQueryId(null);
+        clearAlerts();
+      };
+
+      const downloadResults = () => {
+        if (!results || results.length === 0) return;
+
+        const csvContent = [
+          Object.keys(results[0]).join(','),
+          ...results.map(row => Object.values(row).map(val => `"${val}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'query_results.csv';
+        link.click();
+        URL.revokeObjectURL(url);
+      };
+
+      const formatTableName = (tableName) => {
+        if (!tableName) return '';
+        return tableName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      };
+
+      const deleteTable = async (tableName, event) => {
+        event.stopPropagation();
+        setTableToDelete(tableName);
+        setShowDeleteModal(true);
+      };
+
+      const confirmDelete = async () => {
+        if (!tableToDelete) return;
+        
+        try {
+          const response = await fetch('/delete_table', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ table_name: tableToDelete }),
+          });
+          
+          if (response.ok) {
+            setSuccess(`Table "${formatTableName(tableToDelete)}" deleted successfully`);
+            await fetchTables();
+            
+            if (currentTable === tableToDelete) {
+              setCurrentTable('');
+              setResults(null);
+              setSqlQuery('');
+              setQuery('');
+            }
+          } else {
+            const errorData = await response.json();
+            setError(errorData.detail || 'Failed to delete table');
+          }
+        } catch (err) {
+          setError('Failed to delete table');
+        } finally {
+          setShowDeleteModal(false);
+          setTableToDelete(null);
+        }
+      };
+
+      const cancelDelete = () => {
+        setShowDeleteModal(false);
+        setTableToDelete(null);
+      };
+
+      const deleteQuery = async (queryId, event) => {
+        event.stopPropagation();
+        setQueryToDelete(queryId);
+        setShowDeleteQueryModal(true);
+      };
+
+      const confirmDeleteQuery = async () => {
+        if (!queryToDelete) return;
+        
+        try {
+          const response = await fetch('/delete_query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query_id: queryToDelete }),
+          });
+          
+          if (response.ok) {
+            setSuccess('Query deleted successfully');
+            await fetchHistory();
+          } else {
+            const errorData = await response.json();
+            setError(errorData.detail || 'Failed to delete query');
+          }
+        } catch (err) {
+          setError('Failed to delete query');
+        } finally {
+          setShowDeleteQueryModal(false);
+          setQueryToDelete(null);
+        }
+      };
+
+      const cancelDeleteQuery = () => {
+        setShowDeleteQueryModal(false);
+        setQueryToDelete(null);
+      };
+
+      const executeHistoryQuery = (historyItem) => {
+        setQuery(historyItem.question);
+        setCurrentTable(historyItem.table_name);
+        selectTable(historyItem.table_name);
+        
+        // Scroll to query input
+        const queryInput = document.querySelector('.query-input');
+        if (queryInput) {
+          queryInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          queryInput.focus();
+        }
+      };
+
+      return (
+        <div className="app-container">
+          {/* Sidebar */}
+          <div className="sidebar">
+            <div className="logo">
+              <div className="logo-content">
+                <div className="logo-icon">
+                  <i className="fas fa-database"></i>
+                </div>
+                <div>
+                  <div className="logo-text">HumanSQL</div>
+                  <div className="logo-subtitle">AI Query Generator</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="sidebar-content">
+              <div className="sidebar-section">
+                <div className="section-title">
+                  <i className="fas fa-table"></i>
+                  Available Tables
+                </div>
+                <div className="tables-container">
+                  {tables.length === 0 ? (
+                    <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '1rem 0' }}>
+                      No tables available. Upload a file to get started.
+                    </div>
+                  ) : (
+                    tables.map((table) => (
+                      <div
+                        key={table.name}
+                        className={`table-item ${currentTable === table.name ? 'active' : ''}`}
+                        onClick={() => selectTable(table.name)}
+                      >
+                        <div className="table-name">{formatTableName(table.name)}</div>
+                        <div className="table-info">{table.columns?.length || 0} columns</div>
+                        <button
+                          className="table-delete-btn"
+                          onClick={(e) => deleteTable(table.name, e)}
+                          title="Delete table"
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="sidebar-section">
+                <div className="section-title">
+                  <i className="fas fa-history"></i>
+                  Recent Queries
+                </div>
+                <div className="history-container">
+                  {history.length === 0 ? (
+                    <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '1rem 0' }}>
+                      No queries yet. Start by asking a question!
+                    </div>
+                  ) : (
+                    history.slice(0, 10).map((item, index) => (
+                      <div 
+                        key={index} 
+                        className="history-item"
+                        onClick={() => executeHistoryQuery(item)}
+                        style={{ cursor: 'pointer' }}
+                        title="Click to reuse this query"
+                      >
+                        <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'white', fontSize: '0.85rem', paddingRight: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <i className="fas fa-redo" style={{ fontSize: '0.7rem', opacity: '0.7' }}></i>
+                          {item.question.length > 45 ? item.question.substring(0, 45) + '...' : item.question}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                          {new Date(item.timestamp).toLocaleString()}
+                        </div>
+                        <button
+                          className="history-delete-btn"
+                          onClick={(e) => deleteQuery(item.id, e)}
+                          title="Delete query"
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="main-content">
+            <div className="main-header">
+              <h1 className="main-title">HumanSQL</h1>
+              <p className="main-subtitle">Transform natural language into powerful SQL queries with advanced AI technology</p>
+            </div>
+
+            <div className="main-body">
+              {/* Alerts */}
+              {(error || warning || success) && (
+                <div>
+                  {error && <div className="alert alert-error">{error}</div>}
+                  {warning && <div className="alert alert-warning">{warning}</div>}
+                  {success && <div className="alert alert-success">{success}</div>}
+                </div>
+              )}
+
+            {/* Upload Card */}
+            <div className="card">
+              <h2 className="card-title">
+                <i className="fas fa-cloud-upload-alt card-icon"></i>
+                Upload Your Data
+              </h2>
+              
+              <div
+                className={`upload-area ${dragOver ? 'dragover' : ''}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <i className="fas fa-cloud-upload-alt upload-icon"></i>
+                <div className="upload-text">
+                  {file ? file.name : 'Drop your file here or click to browse'}
+                </div>
+                <div className="upload-subtext">
+                  Supports CSV, Excel (.xlsx), PDF, and text files
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.pdf,.txt"
+                  onChange={(e) => {
+                    if (e.target.files[0]) {
+                      setFile(e.target.files[0]);
+                      clearAlerts();
+                    }
+                  }}
+                  style={{ display: 'none' }}
+                />
+              </div>
+
+              <div className="btn-group" style={{ marginTop: '1rem' }}>
+                <button
+                  onClick={handleUpload}
+                  disabled={!file || uploadLoading}
+                  className="btn"
+                >
+                  {uploadLoading ? (
+                    <div className="loading">
+                      <div className="spinner"></div>
+                      Uploading...
+                    </div>
+                  ) : (
+                    <>
+                      <i className="fas fa-upload"></i>
+                      Upload File
+                    </>
+                  )}
+                </button>
+                {file && (
+                  <button
+                    onClick={() => setFile(null)}
+                    className="btn btn-secondary"
+                  >
+                    <i className="fas fa-times"></i>
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Current Table Indicator */}
+            {currentTable && (
+              <div className="current-table-indicator">
+                <i className="fas fa-database"></i>
+                <div className="current-table-name">
+                  Active Table: {formatTableName(currentTable)}
+                </div>
+                <div className="current-table-info">
+                  {tables.find(t => t.name === currentTable)?.columns?.length || 0} columns
+                </div>
+              </div>
+            )}
+
+            {/* Query Card */}
+            {currentTable && (
+              <div className="card">
+                <h2 className="card-title">
+                  <i className="fas fa-comments card-icon"></i>
+                  Ask Your Question
+                </h2>
+
+                {/* Chat Interface */}
+                {showChat && (
+                  <div className="chat-container">
+                    <div className="chat-messages">
+                      {chatMessages.length === 0 ? (
+                        <div className="empty-chat">Start a conversation by asking a question below</div>
+                      ) : (
+                        chatMessages.map((message) => (
+                          <div key={message.id} className={`chat-message ${message.type}`}>
+                            <div 
+                              className="chat-message-content" 
+                              dangerouslySetInnerHTML={{ __html: formatMarkdown(message.content) }}
+                            ></div>
+                            <div className="chat-message-time">
+                              {message.timestamp.toLocaleTimeString()}
+                            </div>
+                            {message.type === 'assistant' && message.queryId && !message.feedbackGiven && (
+                              <div className="chat-feedback">
+                                <span className="chat-feedback-text">Was this helpful?</span>
+                                <button
+                                  onClick={() => submitChatFeedback(message.id, 1)}
+                                  className="chat-feedback-btn like"
+                                  title="This answer is helpful"
+                                >
+                                  <i className="fas fa-thumbs-up"></i>
+                                </button>
+                                <button
+                                  onClick={() => submitChatFeedback(message.id, -1)}
+                                  className="chat-feedback-btn dislike"
+                                  title="This answer needs improvement"
+                                >
+                                  <i className="fas fa-thumbs-down"></i>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="query-container">
+                  <textarea
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder="Type your question here... (e.g., 'Show me all records', 'What are my skills?', 'Count total rows')"
+                    className="query-input"
+                  />
+                  <button
+                    onClick={handleVoiceInput}
+                    className={`voice-btn ${isRecording ? 'active' : ''}`}
+                    title={isRecording ? 'Click to stop recording' : 'Click to start voice input'}
+                  >
+                    <i className={`fas ${isRecording ? 'fa-stop' : 'fa-microphone'}`}></i>
+                  </button>
+                </div>
+
+                <div className="btn-group">
+                  <button
+                    onClick={handleQuery}
+                    disabled={!query.trim() || queryLoading}
+                    className="btn"
+                  >
+                    {queryLoading ? (
+                      <div className="loading">
+                        <div className="spinner"></div>
+                        Processing...
+                      </div>
+                    ) : (
+                      <>
+                        <i className="fas fa-search"></i>
+                        Execute Query
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={clearQuery}
+                    className="btn btn-secondary"
+                  >
+                    <i className="fas fa-eraser"></i>
+                    Clear
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Results Card */}
+            {(sqlQuery || results) && (
+              <div className="card">
+                <h2 className="card-title">
+                  <i className="fas fa-chart-bar card-icon"></i>
+                  Query Results
+                </h2>
+
+                    {sqlQuery && (
+                      <div className="sql-container">
+                        <div className="sql-header">
+                          <div className="sql-title">Generated SQL Query</div>
+                        </div>
+                        <div className="sql-display">{sqlQuery}</div>
+                        
+                        {/* SIMPLE FEEDBACK SECTION */}
+                        {currentQueryId && (
+                          <div style={{
+                            background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                            border: '2px solid #0ea5e9',
+                            borderRadius: '12px',
+                            padding: '1.5rem',
+                            marginTop: '1.5rem',
+                            textAlign: 'center'
+                          }}>
+                            <div style={{
+                              display: 'flex',
+                              gap: '1rem',
+                              justifyContent: 'center',
+                              alignItems: 'center'
+                            }}>
+                              <button
+                                onClick={() => submitChatFeedback(currentQueryId, 1)}
+                                style={{
+                                  background: '#10b981',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  padding: '0.75rem 1.5rem',
+                                  fontSize: '1rem',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                onMouseOver={(e) => e.target.style.background = '#059669'}
+                                onMouseOut={(e) => e.target.style.background = '#10b981'}
+                              >
+                                <i className="fas fa-thumbs-up"></i>
+                                Good Query
+                              </button>
+                              <button
+                                onClick={() => submitChatFeedback(currentQueryId, -1)}
+                                style={{
+                                  background: '#ef4444',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  padding: '0.75rem 1.5rem',
+                                  fontSize: '1rem',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                onMouseOver={(e) => e.target.style.background = '#dc2626'}
+                                onMouseOut={(e) => e.target.style.background = '#ef4444'}
+                              >
+                                <i className="fas fa-thumbs-down"></i>
+                                Needs Work
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                      </div>
+                    )}
+
+                {results && results.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+                        Results ({results.length} rows)
+                      </h3>
+                      <button
+                        onClick={downloadResults}
+                        className="btn btn-success"
+                      >
+                        <i className="fas fa-download"></i>
+                        Download CSV
+                      </button>
+                    </div>
+                    
+                    <div className="results-container">
+                      <table className="results-table">
+                        <thead>
+                          <tr>
+                            {Object.keys(results[0]).map((key) => (
+                              <th key={key}>{key}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {results.slice(0, 100).map((row, index) => (
+                            <tr key={index}>
+                              {Object.values(row).map((value, i) => (
+                                <td key={i}>{String(value)}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {results.length > 100 && (
+                      <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '1rem', textAlign: 'center' }}>
+                        Showing first 100 rows of {results.length} total results
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+              {feedbackAnalytics && (
+                <div className="feedback-analytics">
+                  <div className="analytics-title">
+                    <i className="fas fa-chart-line"></i>
+                    Feedback Analytics
+                  </div>
+                  <div className="analytics-stats">
+                    <div className="stat-item">
+                      <div className="stat-value">{feedbackAnalytics.total_feedback || 0}</div>
+                      <div className="stat-label">Total Ratings</div>
+                    </div>
+                    <div className="stat-item">
+                      <div className="stat-value">{feedbackAnalytics.avg_rating || 0}</div>
+                      <div className="stat-label">Avg Rating</div>
+                    </div>
+                    <div className="stat-item">
+                      <div className="stat-value">{feedbackAnalytics.satisfaction_rate || 0}%</div>
+                      <div className="stat-label">Satisfaction</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!currentTable && (
+                <div className="card">
+                  <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+                    <i className="fas fa-rocket" style={{ fontSize: '2.5rem', color: 'var(--primary)', marginBottom: '1rem' }}></i>
+                    <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>Welcome to HumanSQL!</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '300px', margin: '0 auto', lineHeight: '1.5' }}>Upload a file to get started with AI-powered SQL generation.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Delete Query Confirmation Modal */}
+          {showDeleteQueryModal && (
+            <div className="modal-overlay" onClick={cancelDeleteQuery}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-title">
+                  <i className="fas fa-exclamation-triangle" style={{ color: 'var(--error)' }}></i>
+                  Delete Query
+                </div>
+                <div className="modal-message">
+                  Are you sure you want to delete this query from your history? 
+                  This action cannot be undone.
+                </div>
+                <div className="modal-actions">
+                  <button className="modal-btn modal-btn-cancel" onClick={cancelDeleteQuery}>
+                    Cancel
+                  </button>
+                  <button className="modal-btn modal-btn-delete" onClick={confirmDeleteQuery}>
+                    <i className="fas fa-trash" style={{ marginRight: '0.5rem' }}></i>
+                    Delete Query
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Table Confirmation Modal */}
+          {showDeleteModal && (
+            <div className="modal-overlay" onClick={cancelDelete}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-title">
+                  <i className="fas fa-exclamation-triangle" style={{ color: 'var(--error)' }}></i>
+                  Delete Table
+                </div>
+                <div className="modal-message">
+                  Are you sure you want to delete table <strong>"{formatTableName(tableToDelete)}"</strong>? 
+                  This action cannot be undone and all data will be permanently lost.
+                </div>
+                <div className="modal-actions">
+                  <button className="modal-btn modal-btn-cancel" onClick={cancelDelete}>
+                    Cancel
+                  </button>
+                  <button className="modal-btn modal-btn-delete" onClick={confirmDelete}>
+                    <i className="fas fa-trash" style={{ marginRight: '0.5rem' }}></i>
+                    Delete Table
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+pythFlask
+Flask-CORS
+pandas
+psycopg2-binary
+openpyxl
+pdfplumber
+PyPDF2
+haystack-ai
+google-ai-haystack
+numpy
+Werkzeug
+python-dotenv
